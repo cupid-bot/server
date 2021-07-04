@@ -1,3 +1,5 @@
+<img src="docs/static/logo.png" alt="Cupid Logo" width="200"></img>
+
 # Cupid API Server
 
 This is the API server that powers the Cupid bot and website.
