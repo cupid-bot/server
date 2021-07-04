@@ -1,0 +1,69 @@
+"""Peewee ORM model for a user."""
+from __future__ import annotations
+
+import enum
+from typing import Any
+
+import peewee
+
+from .database import BaseModel
+from .enums import EnumField
+
+
+class Gender(enum.Enum):
+    """The gender of a user."""
+
+    NON_BINARY = 1
+    FEMALE = 2
+    MALE = 3
+
+
+class User(BaseModel):
+    """Peewee ORM model for a user."""
+
+    name = peewee.CharField(max_length=255)
+    discriminator = peewee.FixedCharField(max_length=4)
+    avatar_url = peewee.CharField(max_length=255)
+    gender = EnumField(Gender, default=Gender.NON_BINARY)
+
+    @classmethod
+    def from_object(
+            cls,
+            obj: Any,
+            id: int = None,
+            gender: Gender = Gender.NON_BINARY) -> User:
+        """Create or update a user from an object.
+
+        The object must have `name`, `discriminator` and `avatar_url`
+        attributes. The object may have an `id` attribute, otherwise the `id`
+        parameter must  be passed. The object may have a `gender` attribute,
+        otherwise the `gender` parameter will be used (or the current value,
+        if the user is already registered).
+        """
+        id = getattr(obj, 'id', id)
+        user = cls.get_or_none(cls.id == id)
+        if user:
+            user.name = obj.name
+            user.discriminator = obj.discriminator
+            user.avatar_url = obj.avatar_url
+            if hasattr(obj, 'gender'):
+                user.gender = obj.gender
+            user.save()
+            return user
+        return cls.create(
+            id=id,
+            name=obj.name,
+            discriminator=obj.discriminator,
+            avatar_url=obj.avatar_url,
+            gender=getattr(obj, 'gender', gender),
+        )
+
+    def as_dict(self) -> dict[str, Any]:
+        """Get the user as a dict for JSON serialisation."""
+        return {
+            'id': str(self.id),
+            'name': self.name,
+            'discriminator': self.discriminator,
+            'avatar_url': self.avatar_url,
+            'gender': self.gender.value,
+        }
