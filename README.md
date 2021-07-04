@@ -46,6 +46,8 @@ The following commands are available:
 
 For more help on Cupid commands, add a `--help` to the end.
 
-## API
+## API Docs
 
-TODO: Create and link to API docs.
+An [OpenAPI 3](https://swagger.io/specification) schema for the API is available at `docs/docs.yaml` in this repository.
+
+Once the API server is running (and unless the `disable_docs` option has been enabled), interactive HTML docs will be served at `/docs.html`. The OpenAPI schema will also be available at `/docs.yaml`.

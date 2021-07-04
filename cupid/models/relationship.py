@@ -13,8 +13,8 @@ from .user import User
 class RelationshipKind(enum.Enum):
     """The type of a relationship."""
 
-    MARRIAGE = 1
-    ADOPTION = 2
+    MARRIAGE = 'marriage'
+    ADOPTION = 'adoption'
 
 
 class Relationship(BaseModel):

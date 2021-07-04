@@ -26,21 +26,24 @@ async def discord_authenticate(request: Request) -> HTTPResponse:
         user_data = authenticate_user(request.ctx.body.token)
     except DiscordAuthError as error:
         raise SanicException(str(error), 422) from error
-    user = User.from_object(user_data)
-    return json(Session.create(user=user, with_token=True).as_dict())
+    user, created = User.from_object(user_data)
+    return json(
+        Session.create(user=user, with_token=True).as_dict(),
+        201 if created else 200
+    )
 
 
 @app.get('/auth/me')
 @authenticated
 async def get_self(request: Request) -> HTTPResponse:
-    """Get information on the authenticated user."""
+    """Get information on the authenticated user or app."""
     return json(request.ctx.token.to_entity().as_dict())
 
 
 @app.delete('/auth/me')
 @authenticated
 async def delete_session(request: Request) -> HTTPResponse:
-    """Delete the current authentication session."""
+    """Delete the current authentication session or app."""
     request.ctx.token.to_entity().delete_instance()
     return HTTPResponse(status=204)
 

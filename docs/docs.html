@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <script type="module" src="./static/rapidoc-min.js"></script>
+  </head>
+  <body>
+    <rapi-doc
+        spec-url="./docs.yaml"
+        heading-text="Cupid API"
+        goto-path="get-/user/-id-"
+        fill-request-fields-with-example="false"
+        theme="dark"
+        bg-color="#111"
+        text-color="#fff"
+        primary-color="#ff2fd6"
+        regular-font="'Open Sans', Avenir, 'Segoe UI', Arial, sans-serif"
+        mono-font="Monaco, 'Andale Mono', 'Roboto Mono', 'Consolas' monospace"
+        nav-bg-color="#333"
+        nav-text-color="#ddd"
+        nav-hover-bg-color="#222"
+        nav-hover-text-color="#ddd"
+        nav-accent-color="#ff2fd6"
+        render-style="focused"
+        show-header="false"
+        allow-search="false"
+        allow-advanced-search="false">
+      <slot slot="nav-logo" style="display: flex; align-items: center; justify-content: center; border-bottom: 1px solid #ddd; padding-bottom: 15px">
+        <img src="./static/logo.png" height="32" style="margin-right: 5px">
+        <h2>Cupid API</h2>
+      </slot>
+    </rapi-doc>
+  </body>
+</html>

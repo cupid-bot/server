@@ -34,6 +34,7 @@ Logging options:
 Other server options:
   --server-host <host>        The host to bind to ('0.0.0.0').
   --server-port <port>        The port to bind to (80).
+  --disable-docs              Disable serving API docs from /docs (no).
   --config-file <path>        INI file for config options ('config.ini').
   --session-expiry <time>     User session expiry time ('PD30').
   --debug                     Whether to run in debug mode (no).
@@ -144,7 +145,7 @@ def list_apps():
 
 
 if __name__ == '__main__':
-    args = docopt(__doc__, version='Cupid 0.1.0')
+    args = docopt(__doc__, version='Cupid 0.1.1')
     config.load(args)
     init_db()
     if args['create-app']:

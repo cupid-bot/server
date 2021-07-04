@@ -1,6 +1,7 @@
 """Routes for creating and managing relationships."""
 import pydantic
 
+from sanic.exceptions import SanicException
 from sanic.request import Request
 from sanic.response import HTTPResponse, json
 
@@ -33,7 +34,7 @@ async def propose_relationship(request: Request) -> HTTPResponse:
     check_relationship(initiator, other, request.ctx.body.kind)
     return json(Relationship.create(
         initiator=initiator, other=other, kind=request.ctx.body.kind,
-    ).as_json())
+    ).as_json(), 201)
 
 
 @app.post('/relationship/<id:int>/accept')
@@ -41,6 +42,8 @@ async def propose_relationship(request: Request) -> HTTPResponse:
 async def accept_relationship(request: Request, id: int) -> HTTPResponse:
     """Accept a relationship proposal."""
     rel = get_relationship(id)
+    if rel.accepted:
+        raise SanicException('Relationship already accepted.', 409)
     # Make sure circumstances have not changed since the proposal was created.
     check_relationship(rel.initiator, rel.other, rel.kind)
     rel.accepted = True

@@ -79,6 +79,7 @@ class _Config(pydantic.BaseModel):
     # Other miscellaneous configuration.
     server_host: str = '0.0.0.0'
     server_port: int = 80
+    disable_docs: bool = False    # Disable serving docs.
     session_expiry: timedelta = timedelta(days=30)
     debug: bool = False
 
@@ -110,7 +111,7 @@ def _apply_log_levels():
     for log_name, (log_level, log_format) in logs.items():
         logger = logging.getLogger(log_name)
         logger.setLevel(log_level)
-        handler = RichHandler()
+        handler = RichHandler(rich_tracebacks=True)
         handler.setFormatter(logging.Formatter(log_format, style='{'))
         logger.addHandler(handler)
 

@@ -1,4 +1,5 @@
 """Utilities common to the route handlers."""
+import enum
 import functools
 from typing import Any, Callable, Type, Union
 
@@ -9,7 +10,7 @@ from sanic.exceptions import Forbidden, NotFound, SanicException
 from sanic.request import Request
 from sanic.response import HTTPResponse, json
 
-from ..config import CONFIG
+from ..config import BASE_PATH, CONFIG
 from ..graph import RelationshipForbidden
 from ..models import Relationship, User
 from ..tokens import Token, TokenParseError, TokenType
@@ -22,6 +23,8 @@ def run():
     """Run the app."""
     app.config.FALLBACK_ERROR_FORMAT = 'json'
     app.config.DEBUG = CONFIG.debug
+    if not CONFIG.disable_docs:
+        app.static('/', BASE_PATH / 'docs')
     app.run(
         host=CONFIG.server_host,
         port=CONFIG.server_port,
@@ -34,15 +37,26 @@ class AuthError(ValueError):
     """An error when parsing the authorisation header."""
 
 
-@app.exception(pydantic.ValidationError)
+class ValidationLocationError(ValueError, enum.Enum):
+    """An error to represent the location another error occurred in.
+
+    Exists to distinguish between JSON body parsing errors and URL parameter
+    parsing errors.
+    """
+
+    BODY = 'JSON body'
+    PARAMS = 'URL parameters'
+
+
+@app.exception(ValidationLocationError)
 async def handle_validation_error(
         request: Request, error: pydantic.ValidationError) -> HTTPResponse:
     """Handle a Pydantic validation error."""
     return json({
-        'description': 'Badly formatted JSON body.',
+        'description': f'Badly formatted {error.value}.',
         'status': 422,
-        'message': 'JSON body did not conform to schema.',
-        'errors': error.errors(),
+        'message': f'{error.value} did not conform to schema.',
+        'errors': error.__cause__.errors(),
     }, 422)
 
 
@@ -83,6 +97,24 @@ def get_relationship(id: int) -> Relationship:
     raise NotFound(f'Relationship not found by ID {id}.')
 
 
+def parse_args(
+        model: Type[pydantic.BaseModel]) -> Callable[[Callable], Callable]:
+    """Create a decorator to parse the request args as a Pydantic type."""
+    def decorator(handler: Callable) -> Callable:
+        """Decorate a handler to parse the request args as a Pydantic type."""
+        @functools.wraps(handler)
+        async def decorated(
+                request: Request, *args: Any, **kwargs: Any) -> Any:
+            """Parse the request parameters as a Pydantic type."""
+            try:
+                request.ctx.args = model(**dict(request.query_args))
+            except pydantic.ValidationError as e:
+                raise ValidationLocationError.PARAMS from e
+            return await handler(request, *args, **kwargs)
+        return decorated
+    return decorator
+
+
 def parse_body(
         model: Type[pydantic.BaseModel]) -> Callable[[Callable], Callable]:
     """Create a decorator to parse the request body as a Pydantic type."""
@@ -94,8 +126,10 @@ def parse_body(
             """Parse the request body as a Pydantic type."""
             if not request.json:
                 raise SanicException('JSON body missing.', 415)
-            # We have a custom handler for Pydantic validation errors.
-            request.ctx.body = model(**request.json)
+            try:
+                request.ctx.body = model(**request.json)
+            except pydantic.ValidationError as e:
+                raise ValidationLocationError.BODY from e
             return await handler(request, *args, **kwargs)
         return decorated
     return decorator

@@ -1,0 +1,648 @@
+openapi: 3.0.3
+
+info:
+  title: Cupid API
+  description: |
+    The API server that powers Cupid bot and the web interface.
+
+    ## Authentication
+
+    Two forms of authentication are available: app authentication, and user session authentication. Each endpoint is marked with the types of authentication it accepts.
+
+    A token for app authentication is obtained using the server management CLI: `cupid create-app <app-name>` (more information in the server README).
+
+    A token for user session authentication is obtained using the [`POST /auth/login`](#post-/auth/login) endpoint (see link for more detail).
+  version: 0.1.1
+
+servers:
+- url: https://api.example.com
+  description: Production server.
+
+tags:
+- name: users
+  description: Manage and view users.
+- name: relationships
+  description: Manage relationships.
+- name: auth
+  description: Manage your client authentication.
+
+paths:
+  /users/list:
+    get:
+      tags:
+      - users
+      summary: List users
+      description: Get a paginated list of users with associated data.
+      x-badges:
+      - color: green
+        label: App token
+      - color: blue
+        label: User token
+      operationId: list_users
+      parameters:
+      - name: search
+        in: query
+        description: A query to filter users.
+        schema:
+          type: string
+      - name: per_page
+        in: query
+        description: How many users to return per page.
+        schema:
+          type: integer
+          default: 20
+      - name: page
+        in: query
+        description: The page number to get.
+        schema:
+          type: integer
+          default: 0
+      security:
+      - app_token: []
+      - session_token: []
+      responses:
+        200:
+          description: Success - a list of users
+          content:
+            application/json:
+              schema:
+                type: object
+                description: One page of users.
+                properties:
+                  page:
+                    type: integer
+                    description: The current page number.
+                  per_page:
+                    type: integer
+                    description: The users displayed per page.
+                    example: 20
+                  pages:
+                    type: integer
+                    description: The total number of pages.
+                    example: 3
+                  total:
+                    type: integer
+                    description: The total number of users.
+                    example: 55
+                  users:
+                    type: array
+                    description: The users on this page.
+                    items:
+                      $ref: '#/components/schemas/User'
+        401:
+          $ref: '#/components/responses/UnauthorisedError'
+        422:
+          $ref: '#/components/responses/ValidationError'
+
+  /users/graph:
+    get:
+      tags:
+      - users
+      summary: Get relationship graph
+      description: Get a graph of all users and their relationships.
+      x-badges:
+      - color: green
+        label: App token
+      - color: blue
+        label: User token
+      operationId: get_user_graph
+      security:
+      - app_token: []
+      - session_token: []
+      responses:
+        200:
+          description: Success - a list of connections
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: object
+                    description: A map of user IDs to user objects.
+                    additionalProperties:
+                      $ref: '#/components/schemas/User'
+                  relationships:
+                    type: array
+                    description: A list of relationships between users.
+                    items:
+                      $ref: '#/components/schemas/PartialRelationship'
+        401:
+          $ref: '#/components/responses/UnauthorisedError'
+
+  /user/{id}:
+    get:
+      tags:
+      - users
+      summary: Get user
+      description: Get information on a user by ID.
+      x-badges:
+      - color: green
+        label: App token
+      - color: blue
+        label: User token
+      operationId: get_user
+      security:
+      - app_token: []
+      - session_token: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/UserId'
+      responses:
+        200:
+          description: Success - user retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        401:
+          $ref: '#/components/responses/UnauthorisedError'
+        404:
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+      - users
+      summary: Create/update user
+      description: Update a user's details by ID, or register the user if they have not been not already.
+      x-badges:
+      - color: green
+        label: App token
+      operationId: update_user
+      security:
+      - app_token: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/UserId'
+      requestBody:
+        description: The user to create.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserData'
+      responses:
+        200:
+          description: Success - user updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        201:
+          description: Success - new user created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        401:
+          $ref: '#/components/responses/UnauthorisedError'
+        422:
+          $ref: '#/components/responses/ValidationError'
+
+  /relationships/new:
+    post:
+      tags:
+      - relationships
+      summary: Propose a relationship
+      description: Create a new relationship proposal for marriage or adoption on behalf of a user. A proposal of adoption should be made by the parent, not the child.
+      x-badges:
+      - color: green
+        label: App token
+      operationId: propose_relationship
+      security:
+      - app_token: []
+      requestBody:
+        description: The relationship to create.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartialRelationship'
+      responses:
+        201:
+          description: Success - Proposal created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Relationship'
+        404:
+          description: A user was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        401:
+          $ref: '#/components/responses/UnauthorisedError'
+        403:
+          description: The relationship is not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        422:
+          $ref: '#/components/responses/ValidationError'
+
+  /relationships/{id}/accept:
+    post:
+      tags:
+      - relationships
+      summary: Accept a proposal
+      description: Accept a relationship proposal for marriage or adoption on behalf of a user.
+      x-badges:
+      - color: green
+        label: App token
+      operationId: accept_relationship
+      security:
+      - app_token: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          description: The ID of the relationship.
+      responses:
+        200:
+          description: Success - Proposal accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Relationship'
+        401:
+          $ref: '#/components/responses/UnauthorisedError'
+        403:
+          description: The relationship is not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        404:
+          description: The proposal was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        409:
+          description: The proposal was already accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /relationships/{id}:
+    delete:
+      tags:
+      - relationships
+      summary: Leave a relationship
+      description: Terminate a relationship between two users, or reject it if it has not yet been accepted.
+      x-badges:
+      - color: green
+        label: App token
+      operationId: leave_relationship
+      security:
+      - app_token: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          description: The ID of the relationship.
+      responses:
+        204:
+          description: Success - Relationship deleted
+        401:
+          $ref: '#/components/responses/UnauthorisedError'
+        404:
+          description: The relationship was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags:
+      - auth
+      summary: Login with Discord
+      description: Authenticate with a Discord OAuth2 bearer token ('user access token') to create an authentication session.
+      x-badges:
+      - color: red
+        label: No token
+      operationId: discord_authenticate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  description: A Discord OAuth2 bearer token for a user.
+      responses:
+        200:
+          description: Success - Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionWithToken'
+        201:
+          description: Success - Session and user created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionWithToken'
+        422:
+          description: Invalid JSON body or bad Discord token
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/ValidationError'
+                - $ref: '#/components/schemas/Error'
+
+  /auth/me:
+    get:
+      tags:
+      - auth
+      summary: Get auth details
+      description: Get information on either the authenticated user or authenticated app - whichever was used to authenticate.
+      x-badges:
+      - color: green
+        label: App token
+      - color: blue
+        label: User token
+      operationId: get_self
+      security:
+      - app_token: []
+      - session_token: []
+      responses:
+        200:
+          description: Success - retrieved session or app
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/App'
+                  description: App object (if authenticated as app)
+                - $ref: '#/components/schemas/Session'
+                  description: Session object (if authenticated as user)
+
+    delete:
+      tags:
+      - auth
+      summary: Delete token
+      description: Delete either the current authentication session or currently authenticated app, as applicable.
+      x-badges:
+      - color: green
+        label: App token
+      - color: blue
+        label: User token
+      operationId: delete_session
+      security:
+      - app_token: []
+      - session_token: []
+      responses:
+        204:
+          description: Success - deleted session or app
+
+    patch:
+      tags:
+      - auth
+      summary: Refresh token
+      description: Replace the token used to authenticate, of either an app or session.
+      x-badges:
+      - color: green
+        label: App token
+      - color: blue
+        label: User token
+      operationId: refresh_token
+      security:
+      - app_token: []
+      - session_token: []
+      responses:
+        200:
+          description: Success - refreshed token
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/AppWithToken'
+                    description: App object (if authenticated as app)
+                  - $ref: '#/components/schemas/SessionWithToken'
+                    description: Session object (if authenticated as user)
+
+components:
+  schemas:
+    UserData:
+      type: object
+      description: The data for a user.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: The user's name.
+          example: Artemis
+        discriminator:
+          type: string
+          pattern: '^[0-9]{4}$'
+          description: The numerical Discord discriminator, as a padded string.
+          example: 0019
+        avatar_url:
+          type: string
+          minLength: 7
+          maxLength: 255
+          description: The URL of the user's Discord avatar.
+          example: https://cdn.discordapp.com/avatars/496381034628251688/3bcff95e2173c60ec712e70d10b28edf.png
+        gender:
+          $ref: "#/components/schemas/Gender"
+
+    User:
+      description: A user of the service.
+      allOf:
+      - $ref: "#/components/schemas/UserData"
+      - type: object
+        properties:
+          id:
+            $ref: "#/components/schemas/UserId"
+
+    UserId:
+      type: string
+      description: The numerical Discord user ID, as a string. For input, an integer will also be accepted.
+      example: '496381034628251688'
+
+    Gender:
+      type: string
+      description: The gender of the user.
+      enum:
+      - non_binary
+      - female
+      - male
+
+    RelationshipKind:
+      type: string
+      description: The type of the relationship.
+      enum:
+      - marriage
+      - adoption
+
+    PartialRelationship:
+      type: object
+      properties:
+        initiator:
+          $ref: '#/components/schemas/UserId'
+        other:
+          $ref: '#/components/schemas/UserId'
+        kind:
+          $ref: '#/components/schemas/RelationshipKind'
+
+    Relationship:
+      type: object
+      properties:
+        initiator:
+          $ref: '#/components/schemas/User'
+          description: The user who proposed the relationship, always the parent in an adoption.
+        other:
+          $ref: '#/components/schemas/User'
+          description: The other user, always the child in an adoption.
+        kind:
+          $ref: '#/components/schemas/RelationshipKind'
+        accepted:
+          type: boolean
+          description: Whether the relationship has been accepted or not.
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+          description: The date at which the relationship was proposed.
+        accepted_at:
+          $ref: '#/components/schemas/Timestamp'
+          optional: true
+          description: The date at which the proposal was accepted, if applicable.
+
+    TokenObject:
+      type: object
+      properties:
+        token:
+          type: string
+          description: The bearer token to use to authenticate.
+          example: 'AAAAAAADk0XpDIlzUO3MgI706W0habli8TAp-4XTp5Zy8CVAwYY'
+
+    Session:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Session ID.
+          example: 124
+        user:
+          $ref: '#/components/schemas/User'
+        expires_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    SessionWithToken:
+      allOf:
+      - $ref: '#/components/schemas/Session'
+      - $ref: '#/components/schemas/TokenObject'
+
+    App:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: App ID.
+          example: 4
+        name:
+          type: string
+          description: App name
+
+    AppWithToken:
+      allOf:
+      - $ref: '#/components/schemas/App'
+      - $ref: '#/components/schemas/TokenObject'
+
+    Timestamp:
+      type: integer
+      description: A date as a Unix timestamp in seconds.
+      example: 1625425373.106704
+
+    Error:
+      type: object
+      description: An error returned by the API.
+      properties:
+        status:
+          type: integer
+          description: The HTTP status code.
+          example: 422
+        description:
+          type: string
+          description: Generic description of the error
+          example: Not found
+        message:
+          type: string
+          description: More specific details about the error
+          example: User not found by ID "139"
+
+    SingleValidationError:
+      type: object
+      description: A single validation error.
+      properties:
+        loc:
+          type: array
+          description: The JSON path to where error occured.
+          example: ['users', 0, 'id']
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+        msg:
+          type: string
+          description: A human-readable description of the error.
+          example: value is not a valid integer
+        type:
+          type: string
+          description: A machine-readable description of the error.
+          example: type_error.integer
+
+    ValidationError:
+      allOf:
+      - $ref: '#/components/schemas/Error'
+      - type: object
+        properties:
+          errors:
+            type: array
+            items:
+              $ref: '#/components/schemas/SingleValidationError'
+
+  securitySchemes:
+    session_token:
+      type: http
+      scheme: bearer
+      description: Bearer token for a user authentication session.
+    app_token:
+      type: http
+      scheme: bearer
+      description: Bearer token for an app.
+
+  responses:
+    UnauthorisedError:
+      description: Access token is missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    ValidationError:
+      description: JSON body or URL query string is invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
