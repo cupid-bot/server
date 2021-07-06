@@ -29,7 +29,7 @@ async def discord_authenticate(request: Request) -> HTTPResponse:
     user, created = User.from_object(user_data)
     return json(
         Session.create(user=user, with_token=True).as_dict(),
-        201 if created else 200
+        201 if created else 200,
     )
 
 

@@ -1,7 +1,8 @@
 """Utilities common to the route handlers."""
 import enum
 import functools
-from typing import Any, Callable, Type, Union
+import os
+from typing import Any, Callable, Optional, Type, Union
 
 import pydantic
 
@@ -12,8 +13,8 @@ from sanic.response import HTTPResponse, json
 
 from ..config import BASE_PATH, CONFIG
 from ..graph import RelationshipForbidden
-from ..models import Relationship, User
-from ..tokens import Token, TokenParseError, TokenType
+from ..models import App, Relationship, User
+from ..tokens import Token, TokenParseError
 
 
 app = Sanic('cupid', configure_logging=False)
@@ -24,7 +25,8 @@ def run():
     app.config.FALLBACK_ERROR_FORMAT = 'json'
     app.config.DEBUG = CONFIG.debug
     if not CONFIG.disable_docs:
-        app.static('/', BASE_PATH / 'docs')
+        for path in os.listdir(BASE_PATH / 'docs'):
+            app.static(path, BASE_PATH / 'docs' / path)
     app.run(
         host=CONFIG.server_host,
         port=CONFIG.server_port,
@@ -90,11 +92,27 @@ def get_user_by_id(id: int) -> User:
     raise NotFound(f'User not found by ID {id}.')
 
 
-def get_relationship(id: int) -> Relationship:
-    """Get a relationship by ID or raise a 404."""
-    if rel := Relationship.get_or_none(Relationship.id == id):
+def get_relationship_or_none(
+        user_1_id: int, user_2_id: int) -> Optional[Relationship]:
+    """Get a relationship between two users if it exists."""
+    return Relationship.get_or_none(
+        (
+            (Relationship.initiator_id == user_1_id)
+            & (Relationship.other_id == user_2_id)
+        ) | (
+            (Relationship.initiator_id == user_2_id)
+            & (Relationship.other_id == user_1_id)
+        )
+    )
+
+
+def get_relationship(user_1_id: int, user_2_id: int) -> Relationship:
+    """Get a relationship by member IDs."""
+    if rel := get_relationship_or_none(user_1_id, user_2_id):
         return rel
-    raise NotFound(f'Relationship not found by ID {id}.')
+    raise NotFound(
+        f'Relationship not found between users {user_1_id} and {user_2_id}.',
+    )
 
 
 def parse_args(
@@ -135,8 +153,8 @@ def parse_body(
     return decorator
 
 
-def authenticate(request: Request):
-    """Authenticate a request by checking the Authorization header."""
+def authenticate_token(request: Request):
+    """Authenticate the Authorization header of a request."""
     if not (header := request.headers.get('authorization')):
         raise AuthError('Authorization header missing.')
     parts = header.split()
@@ -146,7 +164,28 @@ def authenticate(request: Request):
     if scheme.lower() != 'bearer':
         raise AuthError('The "Bearer" authorisation scheme is required.')
     # We have a custom handler for token parse errors.
-    request.ctx.token = Token.from_token(token)
+    request.ctx.requester = Token.from_token(token).to_entity()
+
+
+def authenticate_user(request: Request):
+    """Authorise a request to act for a user.
+
+    This can be done either using an app token and acting on the user's,
+    or using a user session token.
+    """
+    authenticate_token(request)
+    if isinstance(request.ctx.requester, User):
+        request.ctx.user = request.ctx.requester
+    else:
+        if not (header := request.headers.get('cupid-user')):
+            raise AuthError('Cupid-User header missing.')
+        try:
+            user_id = int(header)
+        except ValueError as e:
+            raise AuthError('Cupid-User header malformed.') from e
+        if not (user := User.get_or_none(User.id == user_id)):
+            raise AuthError('User from Cupid-User header not found.')
+        request.ctx.user = user
 
 
 def authenticated(handler: Callable) -> Callable:
@@ -154,7 +193,17 @@ def authenticated(handler: Callable) -> Callable:
     @functools.wraps(handler)
     async def decorated(request: Request, *args: Any, **kwargs: Any) -> Any:
         """Make sure the client is authenticated."""
-        authenticate(request)
+        authenticate_token(request)
+        return await handler(request, *args, **kwargs)
+    return decorated
+
+
+def user_authenticated(handler: Callable) -> Callable:
+    """Decorate a handler to authenticate the client on behalf of a user."""
+    @functools.wraps(handler)
+    async def decorated(request: Request, *args: Any, **kwargs: Any) -> Any:
+        """Authenticate the client on behalf of a user."""
+        authenticate_user(request)
         return await handler(request, *args, **kwargs)
     return decorated
 
@@ -164,8 +213,8 @@ def app_authenticated(handler: Callable) -> Callable:
     @functools.wraps(handler)
     async def decorated(request: Request, *args: Any, **kwargs: Any) -> Any:
         """Make sure the client is authenticated as an app."""
-        authenticate(request)
-        if request.ctx.token.type != TokenType.APP:
+        authenticate_token(request)
+        if not isinstance(request.ctx.requester, App):
             raise Forbidden('Endpoint requires app authorisation.')
         return await handler(request, *args, **kwargs)
     return decorated

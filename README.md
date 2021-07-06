@@ -13,7 +13,7 @@ Once you have these dependencies installed:
 
 1. **Create a virtual environment:** `python3 -m pipenv shell`
 2. **Install dependencies:** `pipenv install`
-3. **Optionally, install development dependencies:** `pip install -d`
+3. **Optionally, install development dependencies:** `pipenv install -d`
 
 ## Configuration
 

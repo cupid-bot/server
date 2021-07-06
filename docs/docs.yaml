@@ -7,12 +7,48 @@ info:
 
     ## Authentication
 
-    Two forms of authentication are available: app authentication, and user session authentication. Each endpoint is marked with the types of authentication it accepts.
+    Each endpoint will require one of four types of authentication:
 
-    A token for app authentication is obtained using the server management CLI: `cupid create-app <app-name>` (more information in the server README).
+    - App authentication
+    - User authentication
+    - Any authentication
+    - No authentication
 
-    A token for user session authentication is obtained using the [`POST /auth/login`](#post-/auth/login) endpoint (see link for more detail).
-  version: 0.1.1
+    These are explained below:
+
+    ## App authentication
+
+    For these endpoints, you must use an app token to authenticate.
+
+    An app token can only be obtained using the server management CLI: `cupid create-app <app-name>` (more information in the server README).
+
+    The app token should be passed in an HTTP `Authorization` header, using the bearer scheme (like `Authorization: Bearer <token>`).
+
+    ## User authentication
+
+    You must be authorised to act on behalf of a user for these endpoints. There are two ways of authenticating:
+
+    ### User session variant
+
+    For this variant, the user must complete a Discord OAuth2 authentication flow. Then, the Discord bearer token ('access token') can be exchanged for a Cupid user token, using the [`POST /auth/login`](#post-/auth/login) endpoint (see the endpoint for more information).
+
+    The user token can then be used for authentication in an HTTP `Authorization` header with the bearer scheme, in the same way as for app authentication.
+
+    ### App variant
+
+    For this variant, an app token is passed in the same way as for app authentication. To indicate which player you wish to act on behalf of, set the `Cupid-User` header to their user ID.
+
+    ## Any authentication
+
+    Either user authentication or app authentication may be used for these endpoints.
+
+    For these endpoints, the app variant of user authentication is equivalent to simple app authentication: the `Cupid-User` header will be ignored.
+
+    ## No authentication
+
+    No authentication is needed for these endpoints. If authentication is passed, it will be accepted but ignored.
+
+  version: 0.2.0
 
 servers:
 - url: https://api.example.com
@@ -35,9 +71,7 @@ paths:
       description: Get a paginated list of users with associated data.
       x-badges:
       - color: green
-        label: App token
-      - color: blue
-        label: User token
+        label: 'Auth: Any'
       operationId: list_users
       parameters:
       - name: search
@@ -102,9 +136,7 @@ paths:
       description: Get a graph of all users and their relationships.
       x-badges:
       - color: green
-        label: App token
-      - color: blue
-        label: User token
+        label: 'Auth: Any'
       operationId: get_user_graph
       security:
       - app_token: []
@@ -138,9 +170,7 @@ paths:
       description: Get information on a user by ID.
       x-badges:
       - color: green
-        label: App token
-      - color: blue
-        label: User token
+        label: 'Auth: Any'
       operationId: get_user
       security:
       - app_token: []
@@ -173,8 +203,8 @@ paths:
       summary: Create/update user
       description: Update a user's details by ID, or register the user if they have not been not already.
       x-badges:
-      - color: green
-        label: App token
+      - color: blue
+        label: 'Auth: App'
       operationId: update_user
       security:
       - app_token: []
@@ -206,27 +236,36 @@ paths:
                 $ref: '#/components/schemas/User'
         401:
           $ref: '#/components/responses/UnauthorisedError'
+        403:
+          description: A user session token was used
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         422:
           $ref: '#/components/responses/ValidationError'
 
-  /relationships/new:
+  /user/<id:int>/relationship:
     post:
       tags:
       - relationships
       summary: Propose a relationship
-      description: Create a new relationship proposal for marriage or adoption on behalf of a user. A proposal of adoption should be made by the parent, not the child.
+      description: Create a new relationship proposal for *marriage with* or *adoption of* another user. A proposal of adoption should be made by the parent, not the child.
       x-badges:
-      - color: green
-        label: App token
+      - color: purple
+        label: 'Auth: User'
       operationId: propose_relationship
       security:
       - app_token: []
       requestBody:
-        description: The relationship to create.
+        description: Information for the relationship to create.
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PartialRelationship'
+              type: object
+              properties:
+                kind:
+                  $ref: '#/components/schemas/RelationshipKind'
       responses:
         201:
           description: Success - Proposal created
@@ -235,7 +274,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Relationship'
         404:
-          description: A user was not found
+          description: A user was not found by that ID
           content:
             application/json:
               schema:
@@ -251,15 +290,45 @@ paths:
         422:
           $ref: '#/components/responses/ValidationError'
 
-  /relationships/{id}/accept:
+    delete:
+      tags:
+      - relationships
+      summary: Leave a relationship
+      description: Terminate a relationship with another user, or reject it if it has not yet been accepted.
+      x-badges:
+      - color: purple
+        label: 'Auth: User'
+      operationId: leave_relationship
+      security:
+      - app_token: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          description: The ID of the user who the relationship is with.
+      responses:
+        204:
+          description: Success - Relationship deleted
+        401:
+          $ref: '#/components/responses/UnauthorisedError'
+        404:
+          description: No relationship exists with that user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /user/<id:int>/relationship/accept:
     post:
       tags:
       - relationships
       summary: Accept a proposal
-      description: Accept a relationship proposal for marriage or adoption on behalf of a user.
+      description: Accept a relationship proposal for marriage or adoption.
       x-badges:
-      - color: green
-        label: App token
+      - color: purple
+        label: 'Auth: User'
       operationId: accept_relationship
       security:
       - app_token: []
@@ -269,7 +338,7 @@ paths:
         required: true
         schema:
           type: integer
-          description: The ID of the relationship.
+          description: The ID of the user who's proposal you are accepting.
       responses:
         200:
           description: Success - Proposal accepted
@@ -298,37 +367,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /relationships/{id}:
-    delete:
-      tags:
-      - relationships
-      summary: Leave a relationship
-      description: Terminate a relationship between two users, or reject it if it has not yet been accepted.
-      x-badges:
-      - color: green
-        label: App token
-      operationId: leave_relationship
-      security:
-      - app_token: []
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: integer
-          description: The ID of the relationship.
-      responses:
-        204:
-          description: Success - Relationship deleted
-        401:
-          $ref: '#/components/responses/UnauthorisedError'
-        404:
-          description: The relationship was not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
   /auth/login:
     post:
       tags:
@@ -337,7 +375,7 @@ paths:
       description: Authenticate with a Discord OAuth2 bearer token ('user access token') to create an authentication session.
       x-badges:
       - color: red
-        label: No token
+        label: 'Auth: None'
       operationId: discord_authenticate
       requestBody:
         content:
@@ -378,9 +416,7 @@ paths:
       description: Get information on either the authenticated user or authenticated app - whichever was used to authenticate.
       x-badges:
       - color: green
-        label: App token
-      - color: blue
-        label: User token
+        label: 'Auth: Any'
       operationId: get_self
       security:
       - app_token: []
@@ -393,9 +429,9 @@ paths:
               schema:
                 oneOf:
                 - $ref: '#/components/schemas/App'
-                  description: App object (if authenticated as app)
                 - $ref: '#/components/schemas/Session'
-                  description: Session object (if authenticated as user)
+        401:
+          $ref: '#/components/responses/UnauthorisedError'
 
     delete:
       tags:
@@ -404,9 +440,7 @@ paths:
       description: Delete either the current authentication session or currently authenticated app, as applicable.
       x-badges:
       - color: green
-        label: App token
-      - color: blue
-        label: User token
+        label: 'Auth: Any'
       operationId: delete_session
       security:
       - app_token: []
@@ -414,6 +448,8 @@ paths:
       responses:
         204:
           description: Success - deleted session or app
+        401:
+          $ref: '#/components/responses/UnauthorisedError'
 
     patch:
       tags:
@@ -422,9 +458,7 @@ paths:
       description: Replace the token used to authenticate, of either an app or session.
       x-badges:
       - color: green
-        label: App token
-      - color: blue
-        label: User token
+        label: 'Auth: Any'
       operationId: refresh_token
       security:
       - app_token: []
@@ -437,9 +471,9 @@ paths:
               schema:
                 oneOf:
                   - $ref: '#/components/schemas/AppWithToken'
-                    description: App object (if authenticated as app)
                   - $ref: '#/components/schemas/SessionWithToken'
-                    description: Session object (if authenticated as user)
+        401:
+          $ref: '#/components/responses/UnauthorisedError'
 
 components:
   schemas:
@@ -509,12 +543,13 @@ components:
     Relationship:
       type: object
       properties:
+        id:
+          type: integer
+          description: The ID of the relationship.
         initiator:
           $ref: '#/components/schemas/User'
-          description: The user who proposed the relationship, always the parent in an adoption.
         other:
           $ref: '#/components/schemas/User'
-          description: The other user, always the child in an adoption.
         kind:
           $ref: '#/components/schemas/RelationshipKind'
         accepted:
@@ -522,11 +557,8 @@ components:
           description: Whether the relationship has been accepted or not.
         created_at:
           $ref: '#/components/schemas/Timestamp'
-          description: The date at which the relationship was proposed.
         accepted_at:
           $ref: '#/components/schemas/Timestamp'
-          optional: true
-          description: The date at which the proposal was accepted, if applicable.
 
     TokenObject:
       type: object
@@ -634,14 +666,14 @@ components:
 
   responses:
     UnauthorisedError:
-      description: Access token is missing or invalid.
+      description: Access token is missing or invalid
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
 
     ValidationError:
-      description: JSON body or URL query string is invalid.
+      description: JSON body or URL query string is invalid
       content:
         application/json:
           schema:
