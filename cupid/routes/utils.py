@@ -102,7 +102,7 @@ def get_relationship_or_none(
         ) | (
             (Relationship.initiator_id == user_2_id)
             & (Relationship.other_id == user_1_id)
-        )
+        ),
     )
 
 

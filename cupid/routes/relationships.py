@@ -30,7 +30,7 @@ async def propose_relationship(request: Request, id: int) -> HTTPResponse:
     """Create a new relationship proposal."""
     if get_relationship_or_none(request.ctx.user.id, id):
         raise RelationshipForbidden(
-            'You cannot have multiple relationships with one user.'
+            'You cannot have multiple relationships with one user.',
         )
     initiator = request.ctx.user
     other = get_user_by_id(id)
