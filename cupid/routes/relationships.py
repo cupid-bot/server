@@ -40,6 +40,13 @@ async def propose_relationship(request: Request, id: int) -> HTTPResponse:
     ).as_json(), 201)
 
 
+@app.get('/user/<id:int>/relationship')
+@user_authenticated
+async def get_own_relationship(request: Request, id: int) -> HTTPResponse:
+    """Get your relationship with a user."""
+    return json(get_relationship(request.ctx.user.id, id).as_json())
+
+
 @app.post('/user/<id:int>/relationship/accept')
 @user_authenticated
 async def accept_relationship(request: Request, id: int) -> HTTPResponse:

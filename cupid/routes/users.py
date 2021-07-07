@@ -78,9 +78,11 @@ async def get_user_graph(request: Request) -> HTTPResponse:
 async def get_user(request: Request, id: int) -> HTTPResponse:
     """Get a user by ID."""
     user = get_user_by_id(id)
-    mutual = Relationship.select().where(
-        Relationship.initiator_id == id,
-        Relationship.other_id == id,
+    accepted = Relationship.select().where(
+        (
+            (Relationship.initiator_id == id)
+            | (Relationship.other_id == id)
+        ),
         Relationship.accepted == True,    # noqa:E712
     )
     incoming = Relationship.select().where(
@@ -94,7 +96,7 @@ async def get_user(request: Request, id: int) -> HTTPResponse:
     return json({
         'user': user.as_dict(),
         'relationships': {
-            'mutual': [rel.as_dict() for rel in mutual],
+            'accepted': [rel.as_dict() for rel in accepted],
             'incoming': [rel.as_dict() for rel in incoming],
             'outgoing': [rel.as_dict() for rel in outgoing],
         },

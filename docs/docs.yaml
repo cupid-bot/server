@@ -48,7 +48,7 @@ info:
 
     No authentication is needed for these endpoints. If authentication is passed, it will be accepted but ignored.
 
-  version: 0.2.0
+  version: 0.2.1
 
 servers:
 - url: https://api.example.com
@@ -92,8 +92,7 @@ paths:
           type: integer
           default: 0
       security:
-      - app_token: []
-      - session_token: []
+      - token: []
       responses:
         200:
           description: Success - a list of users
@@ -139,8 +138,7 @@ paths:
         label: 'Auth: Any'
       operationId: get_user_graph
       security:
-      - app_token: []
-      - session_token: []
+      - token: []
       responses:
         200:
           description: Success - a list of connections
@@ -173,8 +171,7 @@ paths:
         label: 'Auth: Any'
       operationId: get_user
       security:
-      - app_token: []
-      - session_token: []
+      - token: []
       parameters:
       - name: id
         in: path
@@ -187,7 +184,28 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  relationships:
+                    type: object
+                    properties:
+                      accepted:
+                        type: array
+                        description: Accepted relationships the user is part of.
+                        items:
+                          $ref: '#/components/schemas/Relationship'
+                      incoming:
+                        type: array
+                        description: Incoming relationship proposals.
+                        items:
+                          $ref: '#/components/schemas/Relationship'
+                      outgoing:
+                        type: array
+                        description: Outgoing relationship proposals.
+                        items:
+                          $ref: '#/components/schemas/Relationship'
         401:
           $ref: '#/components/responses/UnauthorisedError'
         404:
@@ -207,7 +225,7 @@ paths:
         label: 'Auth: App'
       operationId: update_user
       security:
-      - app_token: []
+      - token: []
       parameters:
       - name: id
         in: path
@@ -255,8 +273,15 @@ paths:
       - color: purple
         label: 'Auth: User'
       operationId: propose_relationship
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          description: The ID of the user to create a relationship with.
       security:
-      - app_token: []
+      - token: []
       requestBody:
         description: Information for the relationship to create.
         content:
@@ -290,6 +315,40 @@ paths:
         422:
           $ref: '#/components/responses/ValidationError'
 
+    get:
+      tags:
+      - relationships
+      summary: Get a relationship
+      description: Get information on the relationship between yourself and another user, if there is one.
+      x-badges:
+      - color: purple
+        label: 'Auth: User'
+      operationId: get_relationship
+      security:
+      - token: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          description: The ID of the user to get the relationship with.
+      responses:
+        200:
+          description: Success - Relationship fetched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Relationship'
+        401:
+          $ref: '#/components/responses/UnauthorisedError'
+        404:
+          description: No relationship exists with that user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
     delete:
       tags:
       - relationships
@@ -300,7 +359,7 @@ paths:
         label: 'Auth: User'
       operationId: leave_relationship
       security:
-      - app_token: []
+      - token: []
       parameters:
       - name: id
         in: path
@@ -331,7 +390,7 @@ paths:
         label: 'Auth: User'
       operationId: accept_relationship
       security:
-      - app_token: []
+      - token: []
       parameters:
       - name: id
         in: path
@@ -419,8 +478,7 @@ paths:
         label: 'Auth: Any'
       operationId: get_self
       security:
-      - app_token: []
-      - session_token: []
+      - token: []
       responses:
         200:
           description: Success - retrieved session or app
@@ -443,8 +501,7 @@ paths:
         label: 'Auth: Any'
       operationId: delete_session
       security:
-      - app_token: []
-      - session_token: []
+      - token: []
       responses:
         204:
           description: Success - deleted session or app
@@ -461,8 +518,7 @@ paths:
         label: 'Auth: Any'
       operationId: refresh_token
       security:
-      - app_token: []
-      - session_token: []
+      - token: []
       responses:
         200:
           description: Success - refreshed token
@@ -655,14 +711,10 @@ components:
               $ref: '#/components/schemas/SingleValidationError'
 
   securitySchemes:
-    session_token:
+    token:
       type: http
       scheme: bearer
-      description: Bearer token for a user authentication session.
-    app_token:
-      type: http
-      scheme: bearer
-      description: Bearer token for an app.
+      description: Bearer token for a user authentication session or an app.
 
   responses:
     UnauthorisedError:
