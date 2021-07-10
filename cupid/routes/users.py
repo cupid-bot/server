@@ -14,6 +14,7 @@ from .utils import (
     get_user_by_id,
     parse_args,
     parse_body,
+    user_authenticated,
 )
 from ..models import Gender, Relationship, User
 
@@ -24,6 +25,12 @@ class UserForm(pydantic.BaseModel):
     name: pydantic.constr(min_length=1, max_length=255)
     discriminator: pydantic.constr(regex=r'^[0-9]{4}$')    # noqa:F722
     avatar_url: pydantic.constr(min_length=7, max_length=255)
+    gender: Gender
+
+
+class GenderUpdateForm(pydantic.BaseModel):
+    """Form for changing a user's gender."""
+
     gender: Gender
 
 
@@ -65,12 +72,26 @@ async def get_user_graph(request: Request) -> HTTPResponse:
             'initiator': str(rel.initiator.id),
             'other': (rel.other.id),
             'kind': rel.kind.value,
-        } for rel in Relationship.select()
+            'created_at': rel.created_at.timestamp(),
+            'accepted_at': rel.accepted_at.timestamp(),
+        } for rel in Relationship.select().where(
+            Relationship.accepted == True,    # noqa: E712
+        )
     ]
     return json({
         'users': users,
         'relationships': relationships,
     })
+
+
+@app.put('/users/me/gender')
+@user_authenticated
+@parse_body(GenderUpdateForm)
+async def update_own_gender(request: Request) -> HTTPResponse:
+    """Update or register a user's details by ID."""
+    request.ctx.user.gender = request.ctx.body.gender
+    request.ctx.user.save()
+    return json(request.ctx.user.as_dict())
 
 
 @app.get('/user/<id:int>')

@@ -48,7 +48,7 @@ info:
 
     No authentication is needed for these endpoints. If authentication is passed, it will be accepted but ignored.
 
-  version: 0.2.1
+  version: 0.3.0
 
 servers:
 - url: https://api.example.com
@@ -159,6 +159,44 @@ paths:
                       $ref: '#/components/schemas/PartialRelationship'
         401:
           $ref: '#/components/responses/UnauthorisedError'
+
+  /users/me/gender:
+    put:
+      tags:
+      - users
+      summary: Update gender
+      description: Change the gender of the authenticated user.
+      x-badges:
+      - color: purple
+        label: 'Auth: User'
+      operationId: update_gender
+      security:
+      - token: []
+      requestBody:
+        description: The user's new information.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                gender:
+                  $ref: '#/components/schemas/Gender'
+      responses:
+        200:
+          description: Success - user updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        401:
+          $ref: '#/components/responses/UnauthorisedError'
+        404:
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /user/{id}:
     get:
@@ -595,6 +633,10 @@ components:
           $ref: '#/components/schemas/UserId'
         kind:
           $ref: '#/components/schemas/RelationshipKind'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        accepted_at:
+          $ref: '#/components/schemas/Timestamp'
 
     Relationship:
       type: object
@@ -614,7 +656,9 @@ components:
         created_at:
           $ref: '#/components/schemas/Timestamp'
         accepted_at:
-          $ref: '#/components/schemas/Timestamp'
+          oneOf:
+          - $ref: '#/components/schemas/Timestamp'
+          - type: 'null'
 
     TokenObject:
       type: object
