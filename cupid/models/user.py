@@ -21,6 +21,7 @@ class Gender(enum.Enum):
 class User(BaseModel):
     """Peewee ORM model for a user."""
 
+    id = peewee.BigIntegerField(primary_key=True)
     name = peewee.CharField(max_length=255)
     discriminator = peewee.FixedCharField(max_length=4)
     avatar_url = peewee.CharField(max_length=255)
@@ -48,8 +49,7 @@ class User(BaseModel):
             user.name = obj.name
             user.discriminator = obj.discriminator
             user.avatar_url = obj.avatar_url
-            if hasattr(obj, 'gender'):
-                user.gender = obj.gender
+            user.gender = getattr(obj, 'gender', user.gender)
             user.save()
             return user, False
         return cls.create(

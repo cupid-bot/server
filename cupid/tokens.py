@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import base64
-import binascii
 import dataclasses
 import enum
 from typing import Any
@@ -37,7 +36,7 @@ class Token:
 
     00 01 00 00 02 6a 86 bc fd 6a e7 fb 46 1f 31 44 40 52 cb 1a 5f 2c
 
-    Tokens will be encoded in a base 64 format (using '.' and '-' instead of
+    Tokens will be encoded in a base 64 format (using '-' and '_' instead of
     '+' and '/', and no '=' padding).
     """
 
@@ -53,7 +52,7 @@ class Token:
             type = TokenType.APP
         elif isinstance(entity, models.Session):
             type = TokenType.SESSION
-        else:
+        else:    # pragma: no cover
             raise TypeError('Entity must be an app or session object.')
         return cls(version=0, type=type, id=entity.id, secret=entity.secret)
 
@@ -62,11 +61,8 @@ class Token:
         """Parse a token."""
         # Add padding back.
         token += '=' * (4 - (len(token) % 4))
-        try:
-            data = base64.urlsafe_b64decode(token)
-        except binascii.Error as e:
-            raise TokenParseError('Invalid base 64.') from e
-        if not token:
+        data = base64.urlsafe_b64decode(token)
+        if not data:
             raise TokenParseError('Token cannot be empty.')
         version = data[0]
         if version == 0:
@@ -78,20 +74,20 @@ class Token:
         """Parse version 0 token data."""
         if len(data) < 6:
             raise TokenParseError('Token does not contain all fields.')
-        type_value = data.pop(0)
+        type_value = data[0]
         try:
-            type = TokenParseError(type_value)
+            type = TokenType(type_value)
         except ValueError as e:
             raise TokenParseError('Invalid token type.') from e
-        id = int.from_bytes(data[:4], 'big')
-        secret = data[4:]
+        id = int.from_bytes(data[1:5], 'big')
+        secret = data[5:]
         return cls(version=0, type=type, id=id, secret=secret)
 
     def __str__(self) -> str:
         """Create the token from its fields."""
         if self.version == 0:
             data = self.serialise_version_0()
-        else:
+        else:    # pragma: no cover
             raise ValueError('Unkown token version.')
         data = bytes([self.version, *data])
         return base64.urlsafe_b64encode(data).decode().rstrip('=')

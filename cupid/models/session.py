@@ -5,7 +5,7 @@ from typing import Any
 
 import peewee
 
-from .database import BaseModel, BytesField
+from .database import BaseModel
 from .user import User
 from .. import tokens
 from ..config import CONFIG
@@ -15,7 +15,7 @@ class Session(BaseModel):
     """Peewee ORM model for a user authentication session."""
 
     user = peewee.ForeignKeyField(User)
-    secret = BytesField(default=secrets.token_bytes)
+    secret = peewee.BlobField(default=secrets.token_bytes)
     created_at = peewee.DateTimeField(default=datetime.now)
 
     @property
@@ -29,7 +29,7 @@ class Session(BaseModel):
             'id': self.id,
             'user': self.user.as_dict(),
             'expires_at': (
-                self.created_at + CONFIG.session_expiry,
+                self.created_at + CONFIG.session_expiry
             ).timestamp(),
             **({'token': self.token} if with_token else {}),
         }

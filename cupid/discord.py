@@ -5,6 +5,7 @@ from typing import Any
 import aiohttp
 
 from .config import CONFIG
+from .testing import TESTING
 
 
 AVATAR_URL = '{cdn}/avatars/{id}/{hash}.png'
@@ -33,7 +34,7 @@ async def get_session() -> session:
 class DiscordUser:
     """Data on a Discord user from the Discord API."""
 
-    id: str
+    id: int
     name: str
     discriminator: str
     avatar_url: str
@@ -97,6 +98,10 @@ async def check_guilds(token: str):
 
 async def authenticate_user(token: str) -> DiscordUser:
     """Get data on a user from an user token."""
+    if TESTING.enabled:
+        if token in TESTING.discord_tokens:
+            return TESTING.discord_tokens[token]
+        raise DiscordAuthError('Unexpected Discord API response.')
     user = get_user(token)
     check_guilds(token)
     return user

@@ -38,12 +38,18 @@ Other server options:
   --config-file <path>        INI file for config options ('config.ini').
   --session-expiry <time>     User session expiry time ('PD30').
   --debug                     Whether to run in debug mode (no).
+  --testing                   Whether to run in testing mode (no).
+                                Testing mode allows ANY client to WIPE THE
+                                DATABASE, and should never be enabled on a
+                                web-facing server.
 
 App management options (only with "app" command):
   --rename <name>             Change the app's name.
   --refresh-token             Refresh the app's token.
   --delete                    Delete the app.
 """
+from __future__ import annotations
+
 import secrets
 import sys
 from typing import Any
@@ -54,8 +60,7 @@ from rich import box
 from rich.console import Console
 from rich.table import Column, Table
 
-from . import config, routes
-from .models import App, init_db
+from . import config
 
 
 console = Console()
@@ -147,6 +152,12 @@ def list_apps():
 if __name__ == '__main__':
     args = docopt(__doc__, version='Cupid 0.1.1')
     config.load(args)
+
+    # Import after loading config, because config starts up code coverage
+    # measurement, if we're running it.
+    from .models import App, init_db
+    from . import routes
+
     init_db()
     if args['create-app']:
         create_app(args)

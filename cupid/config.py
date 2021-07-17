@@ -82,6 +82,9 @@ class _Config(pydantic.BaseModel):
     disable_docs: bool = False    # Disable serving docs.
     session_expiry: timedelta = timedelta(days=30)
     debug: bool = False
+    # Testing mode allows any client to WIPE THE DATABASE or create an app.
+    # It should *never* be enabled on a web-facing server.
+    testing: bool = False
 
 
 class Config:
@@ -146,3 +149,10 @@ def load(arg_data: Optional[dict[str, Any]] = None):
         logger.critical(f'Error parsing config:\n{error}')
         sys.exit(1)
     _apply_log_levels()
+    if _CONFIG.testing:
+        from . import testing
+        testing.enable()
+        logger.warn(
+            'Testing mode is enabled. ANY client will be able to WIPE THE '
+            'DATABASE.',
+        )

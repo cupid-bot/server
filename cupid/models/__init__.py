@@ -7,6 +7,9 @@ from .user import Gender, User    # noqa:F401
 from ..config import CONFIG
 
 
+MODELS = [App, Relationship, Session, User]
+
+
 def init_db():
     """Initialise the Peewee database model."""
     db.init(
@@ -16,4 +19,4 @@ def init_db():
         host=CONFIG.db_host,
         port=CONFIG.db_port,
     )
-    db.create_tables([App, Relationship, Session, User])
+    db.create_tables(MODELS)

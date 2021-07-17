@@ -48,7 +48,7 @@ info:
 
     No authentication is needed for these endpoints. If authentication is passed, it will be accepted but ignored.
 
-  version: 0.3.0
+  version: 0.3.1
 
 servers:
 - url: https://api.example.com
@@ -61,6 +61,8 @@ tags:
   description: Manage relationships.
 - name: auth
   description: Manage your client authentication.
+- name: testing
+  description: Testing mode endpoints, used for running tests on the server. These will not be enabled in production mode servers.
 
 paths:
   /users/list:
@@ -564,10 +566,152 @@ paths:
             application/json:
               schema:
                 oneOf:
-                  - $ref: '#/components/schemas/AppWithToken'
-                  - $ref: '#/components/schemas/SessionWithToken'
+                - $ref: '#/components/schemas/AppWithToken'
+                - $ref: '#/components/schemas/SessionWithToken'
         401:
           $ref: '#/components/responses/UnauthorisedError'
+
+  /testing:
+    get:
+      tags:
+      - testing
+      summary: Check testing mode
+      description: Check if the server is running in testing mode or not. If it is not, the rest of the testing endpoints will return 403 errors.
+      x-badges:
+      - color: red
+        label: 'Auth: None'
+      operationId: check_testing
+      responses:
+        200:
+          description: Success - testing mode retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  testing:
+                    type: boolean
+                    description: Whether or not the server is in testing mode.
+
+  /testing/clear:
+    post:
+      tags:
+      - testing
+      summary: Clear database
+      description: Completely clear every table in the entire database.
+      x-badges:
+      - color: orange
+        label: 'Testing Mode'
+      - color: red
+        label: 'Auth: None'
+      operationId: database_wipe
+      responses:
+        204:
+          description: Success - database wiped
+        403:
+          $ref: '#/components/responses/TestingModeDisabled'
+
+  /testing/app:
+    post:
+      tags:
+      - testing
+      summary: Create app
+      description: Create a new app.
+      x-badges:
+      - color: orange
+        label: 'Testing Mode'
+      - color: red
+        label: 'Auth: None'
+      operationId: app_create
+      requestBody:
+        description: Information for the app to create.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: The name of the app.
+      responses:
+        201:
+          description: Success - app created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppWithToken'
+        403:
+          $ref: '#/components/responses/TestingModeDisabled'
+        422:
+          $ref: '#/components/responses/ValidationError'
+
+  /testing/discord_user:
+    post:
+      tags:
+      - testing
+      summary: Register a Discord token
+      description: Register a Discord OAuth2 bearer token to be used later to create a user session.
+      x-badges:
+      - color: orange
+        label: 'Testing Mode'
+      - color: red
+        label: 'Auth: None'
+      operationId: register_discord_token
+      requestBody:
+        description: Information for the Discord user to register.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  description: The numerical Discord user ID, as a string. An integer will also be accepted.
+                  example: '496381034628251688'
+                token:
+                  type: string
+                  description: The fake Discord OAuth2 bearer token.
+                name:
+                  type: string
+                  description: The fake user's name.
+                  example: Artemis
+                discriminator:
+                  type: string
+                  pattern: '^[0-9]{4}$'
+                  description: The numerical Discord discriminator, as a padded string.
+                  example: 0019
+                avatar_url:
+                  type: string
+                  description: The URL of the fake user's Discord avatar.
+                  example: https://example.com/path/to/image.png
+      responses:
+        201:
+          content:
+            description: Success - Token registered
+
+  /testing/coverage:
+    get:
+      tags:
+      - testing
+      summary: Get code coverage
+      description: Get code coverage for since the server started up.
+      x-badges:
+      - color: orange
+        label: 'Testing Mode'
+      - color: red
+        label: 'Auth: None'
+      operationId: get_coverage
+      responses:
+        200:
+          description: Success - coverage report retrieved
+          content:
+            application/vnd.sqlite3:
+              schema:
+                type: string
+                format: binary
+                description: An Sqlite 3 file which can be rendered as a JSON or HTML coverage report by the Coverage.py library.
+        403:
+          $ref: '#/components/responses/TestingModeDisabled'
 
 components:
   schemas:
@@ -774,3 +918,10 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ValidationError'
+
+    TestingModeDisabled:
+      description: This endpoint is unavailable because testing mode is disabled
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

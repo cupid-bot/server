@@ -24,7 +24,7 @@ def run():
     """Run the app."""
     app.config.FALLBACK_ERROR_FORMAT = 'json'
     app.config.DEBUG = CONFIG.debug
-    if not CONFIG.disable_docs:
+    if not CONFIG.disable_docs:    # pragma: no cover
         for path in os.listdir(BASE_PATH / 'docs'):
             app.static(path, BASE_PATH / 'docs' / path)
     app.run(

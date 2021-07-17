@@ -4,7 +4,7 @@ from typing import Any
 
 import peewee
 
-from .database import BaseModel, BytesField
+from .database import BaseModel
 from .. import tokens
 
 
@@ -12,7 +12,7 @@ class App(BaseModel):
     """Peewee ORM model for a user authentication session."""
 
     name = peewee.CharField(max_length=255)
-    secret = BytesField(default=secrets.token_bytes)
+    secret = peewee.BlobField(default=secrets.token_bytes)
 
     @property
     def token(self) -> str:
