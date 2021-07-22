@@ -37,14 +37,14 @@ async def propose_relationship(request: Request, id: int) -> HTTPResponse:
     check_relationship(initiator, other, request.ctx.body.kind)
     return json(Relationship.create(
         initiator=initiator, other=other, kind=request.ctx.body.kind,
-    ).as_json(), 201)
+    ).as_dict(), 201)
 
 
 @app.get('/user/<id:int>/relationship')
 @user_authenticated
 async def get_own_relationship(request: Request, id: int) -> HTTPResponse:
     """Get your relationship with a user."""
-    return json(get_relationship(request.ctx.user.id, id).as_json())
+    return json(get_relationship(request.ctx.user.id, id).as_dict())
 
 
 @app.post('/user/<id:int>/relationship/accept')
@@ -54,11 +54,13 @@ async def accept_relationship(request: Request, id: int) -> HTTPResponse:
     rel = get_relationship(request.ctx.user.id, id)
     if rel.accepted:
         raise SanicException('Relationship already accepted.', 409)
+    if rel.other.id == id:
+        raise SanicException('You cannot accept a proposal you created.', 403)
     # Make sure circumstances have not changed since the proposal was created.
     check_relationship(rel.initiator, rel.other, rel.kind)
     rel.accepted = True
     rel.save()
-    return json(rel.as_json())
+    return json(rel.as_dict())
 
 
 @app.delete('/user/<id:int>/relationship')

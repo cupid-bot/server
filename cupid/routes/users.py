@@ -50,9 +50,9 @@ async def list_users(request: Request) -> HTTPResponse:
     users = User.select()
     if search := request.ctx.args.search:
         users = users.where(User.name ** f'%{search}%')
-    users = users.offset(request.ctx.args.page * request.ctx.args.per_page)
-    users = users.limit(request.ctx.args.page)
     total = len(users)
+    users = users.offset(request.ctx.args.page * request.ctx.args.per_page)
+    users = users.limit(request.ctx.args.per_page)
     return json({
         'page': request.ctx.args.page,
         'per_page': request.ctx.args.per_page,
@@ -69,6 +69,7 @@ async def get_user_graph(request: Request) -> HTTPResponse:
     users = {str(user.id): user.as_dict() for user in User.select()}
     relationships = [
         {
+            'id': rel.id,
             'initiator': str(rel.initiator.id),
             'other': (rel.other.id),
             'kind': rel.kind.value,

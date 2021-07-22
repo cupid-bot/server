@@ -48,7 +48,7 @@ info:
 
     No authentication is needed for these endpoints. If authentication is passed, it will be accepted but ignored.
 
-  version: 0.3.1
+  version: 0.3.2
 
 servers:
 - url: https://api.example.com
@@ -448,7 +448,7 @@ paths:
         401:
           $ref: '#/components/responses/UnauthorisedError'
         403:
-          description: The relationship is not allowed
+          description: The relationship is not allowed, or you initiated it
           content:
             application/json:
               schema:
@@ -771,6 +771,9 @@ components:
     PartialRelationship:
       type: object
       properties:
+        id:
+          type: integer
+          description: The ID of the relationship.
         initiator:
           $ref: '#/components/schemas/UserId'
         other:

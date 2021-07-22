@@ -21,17 +21,20 @@ def array_agg(expr: Expression) -> Expression:
 def get_connections() -> dict[int, set[int]]:
     """Get a map of all relationships each user has."""
     Related = User.alias('related')
+    self_initiator = Relationship.initiator_id == User.id
+    them_initiator = Relationship.initiator_id == Related.id
+    self_other = Relationship.other_id == User.id
+    them_other = Relationship.other_id == Related.id
     users = User.select(
-        array_agg(Related.id).alias('relations'),
+        User, array_agg(Related.id).alias('relations'),
     ).join(
-        Relationship, JOIN.LEFT_OUTER, Relationship.initiator_id == User.id,
+        Relationship, JOIN.LEFT_OUTER, self_initiator | self_other,
     ).join(
-        Related, JOIN.LEFT_OUTER, Related.other_id == Related.id,
+        Related,
+        JOIN.LEFT_OUTER,
+        (self_initiator & them_other) | (self_other & them_initiator),
     ).where(Relationship.accepted == True).group_by(User.id)    # noqa:E712
-    return {
-        user.id: {relation.id for relation in user.relations}
-        for user in users
-    }
+    return {user.id: set(user.relations) for user in users}
 
 
 def distance(user_1: User, user_2: User) -> int:
@@ -42,21 +45,23 @@ def distance(user_1: User, user_2: User) -> int:
     logger.debug(f'Getting distance between {user_1.id} and {user_2.id}.')
     visited = {user_1.id}
     expanded = set()
-    total = len(User.select())
     distance = 0
     connections = get_connections()
     logger.debug(f'Got {connections=}.')
-    while len(visited) < total:
+    while True:
+        reached_end = True
         for node in visited - expanded:
             if node == user_2.id:
                 logger.debug(f'Found user 2 at {distance=}.')
                 return distance
-            visited |= connections[node]
+            visited |= connections.get(node, set())
             expanded.add(node)
+            reached_end = False
+        if reached_end:
+            logger.debug('Users are not related.')
+            return -1
         distance += 1
         logger.debug(f'{distance=}, {visited=}, {expanded=}')
-    logger.debug('Users are not related.')
-    return -1
 
 
 def either_married(user_1: User, user_2: User) -> bool:
