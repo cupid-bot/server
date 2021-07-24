@@ -48,7 +48,7 @@ info:
 
     No authentication is needed for these endpoints. If authentication is passed, it will be accepted but ignored.
 
-  version: 0.3.4
+  version: 1.0.0
 
 servers:
 - url: https://api.example.com
