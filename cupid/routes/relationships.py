@@ -1,5 +1,5 @@
 """Routes for creating and managing relationships."""
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pydantic
 
@@ -61,7 +61,7 @@ async def accept_relationship(request: Request, id: int) -> HTTPResponse:
     # Make sure circumstances have not changed since the proposal was created.
     check_relationship(rel.initiator, rel.other, rel.kind)
     rel.accepted = True
-    rel.accepted_at = datetime.utcnow()
+    rel.accepted_at = datetime.now(tz=timezone.utc)
     rel.save()
     return json(rel.as_dict())
 

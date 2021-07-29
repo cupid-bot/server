@@ -135,7 +135,7 @@ async def get_single_user_graph(request: Request, id: int) -> HTTPResponse:
             (
                 (Relationship.initiator_id << user_ids)
                 | (Relationship.other_id << user_ids)
-            )
+            ),
         )
     ]
     return json({
