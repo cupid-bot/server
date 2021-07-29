@@ -16,6 +16,7 @@ from .utils import (
     parse_body,
     user_authenticated,
 )
+from ..graph import single_user_graph
 from ..models import Gender, Relationship, User
 
 
@@ -68,14 +69,7 @@ async def get_user_graph(request: Request) -> HTTPResponse:
     """Get a graph of all users and their relationships."""
     users = {str(user.id): user.as_dict() for user in User.select()}
     relationships = [
-        {
-            'id': rel.id,
-            'initiator': str(rel.initiator.id),
-            'other': (rel.other.id),
-            'kind': rel.kind.value,
-            'created_at': rel.created_at.timestamp(),
-            'accepted_at': rel.accepted_at.timestamp(),
-        } for rel in Relationship.select().where(
+        rel.as_partial_dict() for rel in Relationship.select().where(
             Relationship.accepted == True,    # noqa: E712
         )
     ]
@@ -122,6 +116,31 @@ async def get_user(request: Request, id: int) -> HTTPResponse:
             'incoming': [rel.as_dict() for rel in incoming],
             'outgoing': [rel.as_dict() for rel in outgoing],
         },
+    })
+
+
+@app.get('/user/<id:int>/graph')
+@authenticated
+async def get_single_user_graph(request: Request, id: int) -> HTTPResponse:
+    """Get a graph of all users related to one user."""
+    get_user_by_id(id)
+    user_ids = single_user_graph(id)
+    users = {
+        str(user.id): user.as_dict() for user in User.select()
+        if user.id in user_ids
+    }
+    relationships = [
+        rel.as_partial_dict() for rel in Relationship.select().where(
+            Relationship.accepted == True,    # noqa: E712
+            (
+                (Relationship.initiator_id << user_ids)
+                | (Relationship.other_id << user_ids)
+            )
+        )
+    ]
+    return json({
+        'users': users,
+        'relationships': relationships,
     })
 
 

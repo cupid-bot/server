@@ -99,3 +99,17 @@ def check_relationship(initiator: User, other: User, kind: RelationshipKind):
     elif kind == RelationshipKind.ADOPTION:
         if is_adopted(other):
             raise RelationshipForbidden('A user can only be adopted once.')
+
+
+def single_user_graph(user_id: int) -> set[int]:
+    """Get a list of all users related to a user, even distantly."""
+    connections = get_connections()
+    users = {user_id}
+    to_expand = {user_id}
+    while to_expand:
+        new_users = set()
+        for user_id in to_expand:
+            new_users |= connections.get(user_id, set())
+        to_expand = new_users - users
+        users |= new_users
+    return users

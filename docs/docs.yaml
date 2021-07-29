@@ -48,7 +48,7 @@ info:
 
     No authentication is needed for these endpoints. If authentication is passed, it will be accepted but ignored.
 
-  version: 1.0.0
+  version: 1.1.0a0
 
 servers:
 - url: https://api.example.com
@@ -254,6 +254,39 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+
+  /user/{id}/graph:
+    get:
+      tags:
+      - users
+      summary: Get user relationship graph
+      description: Get a graph of all users related to one user.
+      x-badges:
+      - color: green
+        label: 'Auth: Any'
+      operationId: get_single_user_graph
+      security:
+      - token: []
+      responses:
+        200:
+          description: Success - a list of connections
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: object
+                    description: A map of user IDs to user objects.
+                    additionalProperties:
+                      $ref: '#/components/schemas/User'
+                  relationships:
+                    type: array
+                    description: A list of relationships between users.
+                    items:
+                      $ref: '#/components/schemas/PartialRelationship'
+        401:
+          $ref: '#/components/responses/UnauthorisedError'
 
     put:
       tags:
