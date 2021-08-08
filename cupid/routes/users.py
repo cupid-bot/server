@@ -76,7 +76,7 @@ async def get_user_graph(request: Request) -> HTTPResponse:
             (User.id == Relationship.initiator_id)
             | (User.id == Relationship.other_id)
         ) & (Relationship.accepted == True),    # noqa: E712
-    ).group_by(User.id)
+    ).where(Relationship.id.is_null(False)).group_by(User.id)
     user_data = {str(user.id): user.as_dict() for user in users}
     relationships = [
         rel.as_partial_dict() for rel in Relationship.select().where(

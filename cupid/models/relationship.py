@@ -45,8 +45,8 @@ class Relationship(BaseModel):
         """Get the relationship as a dict with minimal information."""
         return {
             'id': self.id,
-            'initiator': str(self.initiator.id),
-            'other': str(self.other.id),
+            'initiator': str(self.initiator_id),
+            'other': str(self.other_id),
             'kind': self.kind.value,
             'created_at': self.created_at.timestamp(),
             'accepted_at': self.accepted_at.timestamp(),
