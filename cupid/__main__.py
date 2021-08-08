@@ -150,7 +150,7 @@ def list_apps():
 
 
 if __name__ == '__main__':
-    args = docopt(__doc__, version='Cupid 0.3.3')
+    args = docopt(__doc__, version='Cupid 1.2.0')
     config.load(args)
 
     # Import after loading config, because config starts up code coverage

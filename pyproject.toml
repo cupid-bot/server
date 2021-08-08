@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cupid-server"
-version = "1.1.0"
+version = "1.2.0"
 description = "The API server that powers Cupid bot and the web interface."
 authors = ["Artemis21 <artemisdev21@gmail.com>"]
 

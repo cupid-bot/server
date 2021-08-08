@@ -2,6 +2,8 @@
 import math
 from typing import Optional
 
+import peewee
+
 import pydantic
 
 from sanic.request import Request
@@ -67,14 +69,22 @@ async def list_users(request: Request) -> HTTPResponse:
 @authenticated
 async def get_user_graph(request: Request) -> HTTPResponse:
     """Get a graph of all users and their relationships."""
-    users = {str(user.id): user.as_dict() for user in User.select()}
+    users = User.select().join(
+        Relationship,
+        peewee.JOIN.LEFT_OUTER,
+        on=(
+            (User.id == Relationship.initiator_id)
+            | (User.id == Relationship.other_id)
+        ) & (Relationship.accepted == True),    # noqa: E712
+    ).group_by(User.id)
+    user_data = {str(user.id): user.as_dict() for user in users}
     relationships = [
         rel.as_partial_dict() for rel in Relationship.select().where(
             Relationship.accepted == True,    # noqa: E712
         )
     ]
     return json({
-        'users': users,
+        'users': user_data,
         'relationships': relationships,
     })
 
