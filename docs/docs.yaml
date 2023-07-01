@@ -710,8 +710,9 @@ paths:
                   example: Artemis
                 discriminator:
                   type: string
-                  pattern: '^[0-9]{4}$'
-                  description: The numerical Discord discriminator, as a padded string.
+                  nullable: true
+                  pattern: '^[0-9]{1,4}$'
+                  description: The numerical Discord discriminator, as a padded string. Update: may also be "0" or null.
                   example: 0019
                 avatar_url:
                   type: string
@@ -760,8 +761,9 @@ components:
           example: Artemis
         discriminator:
           type: string
-          pattern: '^[0-9]{4}$'
-          description: The numerical Discord discriminator, as a padded string.
+          nullable: true
+          pattern: '^[0-9]{1,4}$'
+          description: The numerical Discord discriminator, as a padded string. Update: may also be "0" or null.
           example: 0019
         avatar_url:
           type: string

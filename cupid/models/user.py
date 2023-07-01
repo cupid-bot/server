@@ -23,7 +23,7 @@ class User(BaseModel):
 
     id = peewee.BigIntegerField(primary_key=True)
     name = peewee.CharField(max_length=255)
-    discriminator = peewee.FixedCharField(max_length=4)
+    discriminator = peewee.FixedCharField(max_length=4, null=True)
     avatar_url = peewee.CharField(max_length=255)
     gender = EnumField(Gender, default=Gender.NON_BINARY)
 

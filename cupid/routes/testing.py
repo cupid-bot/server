@@ -3,7 +3,7 @@
 These should *always* be disabled in production.
 """
 import functools
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 import pydantic
 
@@ -30,8 +30,8 @@ class DiscordUserRegisterForm(pydantic.BaseModel):
 
     id: int
     name: str
-    discriminator: str
     avatar_url: str
+    discriminator: Optional[str]
 
 
 def testing_only(handler: Callable) -> Callable:

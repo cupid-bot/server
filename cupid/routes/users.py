@@ -26,9 +26,9 @@ class UserForm(pydantic.BaseModel):
     """Form for creating or updating a user."""
 
     name: pydantic.constr(min_length=1, max_length=255)
-    discriminator: pydantic.constr(regex=r'^[0-9]{4}$')    # noqa:F722
     avatar_url: pydantic.constr(min_length=7, max_length=255)
     gender: Gender
+    discriminator: Optional[pydantic.constr(regex=r'^[0-9]{1,4}$')]  # noqa:F722,E501
 
 
 class GenderUpdateForm(pydantic.BaseModel):
